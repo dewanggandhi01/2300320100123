@@ -559,3 +559,214 @@ Redis Cache
 Database Cluster
 ↓
 Read Replicas
+
+# Stage 5
+
+## Existing Design Problems
+
+Current Flow:
+
+Admin
+↓
+Loop Through 50,000 Students
+↓
+Send Notification One By One
+
+### Problems
+
+* Very slow execution.
+* High probability of timeout.
+* Single point of failure.
+* Poor scalability.
+* Difficult to monitor failures.
+* Not suitable for large user bases.
+
+## Proposed Scalable Architecture
+
+Admin
+↓
+Notification Service
+↓
+Message Queue
+↓
+Worker Pool
+↓
+Notification Database
+
+↓
+
+Email Service
+
+↓
+
+Push Service
+
+↓
+
+Students
+
+The system uses asynchronous processing instead of sending notifications directly.
+
+## Message Queue
+
+### Technology Options
+
+* RabbitMQ
+* Apache Kafka
+* AWS SQS
+
+### Flow
+
+1. Admin creates a notification.
+2. Notification Service creates a job.
+3. Job is pushed into the queue.
+4. Worker services process jobs independently.
+
+### Benefits
+
+* Decouples producer and consumer.
+* Improves scalability.
+* Prevents request timeouts.
+* Handles traffic spikes effectively.
+
+## Worker Pool
+
+Instead of one process handling all notifications, multiple workers process notifications in parallel.
+
+Example:
+
+Queue
+↓
+Worker 1
+Worker 2
+Worker 3
+Worker 4
+
+### Benefits
+
+* Parallel processing.
+* Faster delivery.
+* Horizontal scalability.
+
+## Retry Strategy
+
+If a notification fails:
+
+* Retry after 1 minute.
+* Retry after 5 minutes.
+* Retry after 15 minutes.
+
+### Maximum Retry Attempts
+
+3
+
+### Benefits
+
+* Handles temporary network issues.
+* Improves delivery success rate.
+
+## Dead Letter Queue (DLQ)
+
+If all retry attempts fail:
+
+Notification
+↓
+Dead Letter Queue
+
+### Purpose
+
+* Store permanently failed messages.
+* Enable later investigation.
+* Prevent endless retry loops.
+
+## Idempotency
+
+Every notification request receives a unique idempotency key.
+
+Example:
+
+notificationId + studentId
+
+Before sending a notification:
+
+* Check if it was already delivered.
+* Skip duplicate deliveries.
+
+### Benefits
+
+* Prevents duplicate notifications.
+* Ensures consistent behavior during retries.
+
+## Failure Recovery
+
+If a worker crashes:
+
+* Message remains in the queue.
+* Another worker picks up the message.
+* Processing continues automatically.
+
+### Benefits
+
+* High availability.
+* Fault tolerance.
+* Reliable delivery.
+
+## Multi-Channel Delivery
+
+The system supports:
+
+* In-App Notifications
+* Email Notifications
+
+Notification Service
+↓
+Queue
+↓
+Workers
+↓
+Email Provider
+
+and
+
+Workers
+↓
+Push Notification Service
+
+This ensures users receive notifications through multiple channels.
+
+## Logging Strategy
+
+The following events will be logged using the custom Log() middleware:
+
+* Notification creation
+* Queue insertion
+* Worker processing
+* Retry attempts
+* Dead letter queue transfers
+* Email failures
+* Push notification failures
+* Delivery success events
+
+## Final Architecture Diagram
+
+Admin
+↓
+Notification Service
+↓
+Message Queue
+↓
+Worker Pool
+↓
+Notification Database
+
+↓
+
+Email Service
+
+↓
+
+Push Service
+
+↓
+
+Students
