@@ -276,3 +276,109 @@ Frequently accessed notifications can be cached in Redis.
 ## Logging
 
 Database operations, query failures, cache misses, indexing updates, and scaling events will be logged using the custom Log() middleware.
+
+# Stage 3
+
+## Query Analysis
+
+### Given Query
+
+```sql
+SELECT *
+FROM notifications
+WHERE studentID = 1042
+AND isRead = false
+ORDER BY createdAt ASC;
+```
+
+The query is logically correct because it retrieves unread notifications for a specific student and sorts them by creation time.
+
+## Why Is This Query Slow?
+
+Assume:
+
+* 50,000 students
+* 5,000,000 notifications
+
+Without proper indexing, the database may perform a full table scan to find matching records.
+
+The query also performs sorting on the `createdAt` column, which becomes expensive when millions of records exist.
+
+### Time Complexity
+
+Without Index:
+
+O(N)
+
+With Sorting:
+
+O(N log N)
+
+As the dataset grows, query response time increases significantly.
+
+## Recommended Optimization
+
+Instead of indexing every column, I would create a composite index that matches the query pattern.
+
+```sql
+CREATE INDEX idx_notifications_student_read_created
+ON notifications(studentID, isRead, createdAt);
+```
+
+### Benefits
+
+* Fast lookup by student ID.
+* Efficient filtering of unread notifications.
+* Reduced sorting overhead.
+* Better query execution performance.
+
+## Why Not Index Every Column?
+
+Indexing every column is not recommended.
+
+### Disadvantages
+
+* Increased storage usage.
+* Slower INSERT operations.
+* Slower UPDATE operations.
+* Higher maintenance overhead.
+
+Indexes should only be created on frequently filtered, searched, joined, or sorted columns.
+
+## Computational Cost
+
+### Without Index
+
+O(N)
+
+### With Composite Index
+
+O(log N)
+
+The optimized query reduces the number of scanned rows and improves response time significantly.
+
+## Placement Notifications in Last 7 Days
+
+```sql
+SELECT DISTINCT studentID
+FROM notifications
+WHERE notificationType = 'Placement'
+AND createdAt >= NOW() - INTERVAL '7 DAYS';
+```
+
+This query returns all unique students who received placement notifications in the last seven days.
+
+## Additional Index Recommendation
+
+```sql
+CREATE INDEX idx_notifications_type_created
+ON notifications(notificationType, createdAt);
+```
+
+### Reason
+
+Improves filtering for placement notifications and date-range searches.
+
+## Logging
+
+All query execution failures, slow query detections, index creation activities, and optimization-related events will be tracked using the custom Log() middleware.
