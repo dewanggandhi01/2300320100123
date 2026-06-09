@@ -382,3 +382,180 @@ Improves filtering for placement notifications and date-range searches.
 ## Logging
 
 All query execution failures, slow query detections, index creation activities, and optimization-related events will be tracked using the custom Log() middleware.
+
+# Stage 4
+
+## Problem Statement
+
+Currently, every page load triggers a direct database query to fetch notifications.
+
+Architecture:
+
+Student
+↓
+Frontend
+↓
+Backend
+↓
+Database
+
+When thousands of students refresh the application simultaneously, the database experiences excessive read traffic, resulting in:
+
+* Increased response times.
+* High database load.
+* Reduced scalability.
+* Poor user experience.
+
+## Solution 1: Redis Cache
+
+Instead of querying the database on every request, frequently accessed notifications should be stored in Redis.
+
+Architecture:
+
+Student
+↓
+Frontend
+↓
+Backend
+↓
+Redis Cache
+↓
+Database (Only on Cache Miss)
+
+### Flow
+
+1. User requests notifications.
+2. Backend checks Redis.
+3. If data exists, return cached response.
+4. If data does not exist, query database.
+5. Store result in Redis.
+6. Return response.
+
+### Benefits
+
+* Faster response times.
+* Reduced database load.
+* Better scalability.
+* Improved user experience.
+
+## Cache Invalidation Strategy
+
+Whenever a new notification is created or an existing notification is marked as read:
+
+1. Update the database.
+2. Invalidate the corresponding Redis cache.
+3. Generate a fresh cache entry.
+
+This ensures consistency between cache and database.
+
+## Solution 2: Pagination
+
+Instead of returning all notifications, the API should return data in smaller chunks.
+
+Example:
+
+GET /api/v1/notifications?page=1&limit=10
+
+### Benefits
+
+* Reduced memory usage.
+* Faster API responses.
+* Lower database workload.
+* Better frontend performance.
+
+## Solution 3: Lazy Loading
+
+Notifications should be loaded incrementally as the user scrolls.
+
+Instead of loading hundreds of notifications at once:
+
+* Load the first 10 notifications.
+* Load additional notifications when required.
+
+### Benefits
+
+* Reduced initial load time.
+* Better user experience.
+* Lower server load.
+
+## Solution 4: Read Replicas
+
+Database architecture can be separated into:
+
+Primary Database
+↓
+Read Replicas
+
+### Write Operations
+
+* Create Notification
+* Mark As Read
+
+### Read Operations
+
+* Fetch Notifications
+
+### Benefits
+
+* Distributes read traffic.
+* Improves scalability.
+* Prevents primary database overload.
+
+## Trade-Off Analysis
+
+### Redis Cache
+
+Advantages:
+
+* Very fast reads.
+* Reduced database load.
+
+Disadvantages:
+
+* Additional infrastructure cost.
+* Cache invalidation complexity.
+
+### Pagination
+
+Advantages:
+
+* Efficient resource utilization.
+
+Disadvantages:
+
+* Multiple API requests may be required.
+
+### Read Replicas
+
+Advantages:
+
+* Scales read-heavy workloads.
+
+Disadvantages:
+
+* Replica synchronization lag may occur.
+
+## Logging Strategy
+
+The following events will be logged using the custom Log() middleware:
+
+* Cache hit
+* Cache miss
+* Database query failures
+* Replica failures
+* Pagination requests
+* Performance warnings
+
+## Architecture Diagram
+
+Student
+↓
+Frontend
+↓
+Backend API
+↓
+Redis Cache
+↓
+Database Cluster
+↓
+Read Replicas
