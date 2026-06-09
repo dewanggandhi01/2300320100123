@@ -178,3 +178,101 @@ Benefits:
 ## Logging Strategy
 
 All API requests, notification creation events, notification read updates, broadcast operations, warnings, and errors will be recorded using the custom Log(stack, level, package, message) middleware provided in the assessment setup.
+  
+
+# Stage 2
+
+## Database Choice
+
+I recommend PostgreSQL as the primary database.
+
+### Reasons
+
+* Structured relational data.
+* Strong indexing support.
+* Efficient filtering and pagination.
+* ACID compliance ensures data consistency.
+* Mature ecosystem and scalability support.
+
+## Students Table
+
+| Column     | Type      |
+| ---------- | --------- |
+| id         | UUID      |
+| name       | VARCHAR   |
+| email      | VARCHAR   |
+| created_at | TIMESTAMP |
+
+## Notifications Table
+
+| Column     | Type      |
+| ---------- | --------- |
+| id         | UUID      |
+| student_id | UUID      |
+| type       | ENUM      |
+| message    | TEXT      |
+| is_read    | BOOLEAN   |
+| created_at | TIMESTAMP |
+
+### Notification Types
+
+* Placement
+* Result
+* Event
+
+## Database Relationships
+
+One Student can have many Notifications.
+
+Relationship:
+
+students.id → notifications.student_id
+
+## Scaling Challenges
+
+Assume:
+
+* 50,000 students
+* 5,000,000 notifications
+
+Challenges:
+
+1. Large table scans.
+2. Heavy read traffic.
+3. Sorting overhead for recent notifications.
+4. Continuous storage growth.
+
+## Scaling Solutions
+
+### Indexing
+
+Create indexes on:
+
+* student_id
+* is_read
+* created_at
+* type
+
+### Read Replicas
+
+Primary Database → Read Replica
+
+Read operations can be served from replicas to reduce load.
+
+### Table Partitioning
+
+Partition notifications by month or year.
+
+Examples:
+
+* notifications_2026_01
+* notifications_2026_02
+* notifications_2026_03
+
+### Redis Cache
+
+Frequently accessed notifications can be cached in Redis.
+
+## Logging
+
+Database operations, query failures, cache misses, indexing updates, and scaling events will be logged using the custom Log() middleware.
