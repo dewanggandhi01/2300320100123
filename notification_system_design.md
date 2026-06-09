@@ -770,3 +770,32 @@ Push Service
 ↓
 
 Students
+
+# Stage 6
+
+## Priority Inbox Implementation
+
+Priority Ranking:
+
+1. Placement
+2. Result
+3. Event
+
+Notifications are sorted using:
+- Priority Weight
+- Recency
+
+Top 10 notifications are displayed to users.
+
+## Efficient Maintenance
+
+Instead of sorting all notifications repeatedly, a Min Heap of size 10 can be maintained.
+
+Benefits:
+- O(log 10) insertion
+- Efficient top 10 maintenance
+- Better scalability
+
+## Logging
+
+Notification fetching, processing, ranking and failures are logged using the custom Log() middleware.
